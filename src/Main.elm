@@ -1,10 +1,11 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Browser exposing (Document)
 import Html exposing (Html, button, code, div, nav, pre, text, textarea)
 import Html.Attributes exposing (class, value)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onInput)
 import Icon
+import Time
 
 
 
@@ -13,6 +14,7 @@ import Icon
 
 type alias Model =
     { goCode : String
+    , goCodeEdited : Bool
     , goOutput : String
     }
 
@@ -20,6 +22,7 @@ type alias Model =
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { goCode = initGoCode
+      , goCodeEdited = False
       , goOutput = initGoOutput
       }
     , Cmd.none
@@ -28,16 +31,7 @@ init _ =
 
 initGoCode : String
 initGoCode =
-    """package main
-
-import (
-    "fmt"
-)
-
-func main() {
-    fmt.Println("Hello, World!")
-}
-"""
+    ""
 
 
 initGoOutput : String
@@ -50,7 +44,9 @@ initGoOutput =
 
 
 type Msg
-    = UpdateText String
+    = EditGoCode String
+    | ReceiveGoCode String
+    | SendGoCode Time.Posix
 
 
 
@@ -60,8 +56,18 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        UpdateText text ->
-            ( { model | goCode = text }, Cmd.none )
+        EditGoCode text ->
+            ( { model | goCode = text, goCodeEdited = True }, Cmd.none )
+
+        ReceiveGoCode code ->
+            ( { model | goCode = code }, Cmd.none )
+
+        SendGoCode _ ->
+            if model.goCodeEdited then
+                ( { model | goCodeEdited = False }, sendGoCode model.goCode )
+
+            else
+                ( model, Cmd.none )
 
 
 
@@ -98,13 +104,35 @@ editor goCode =
     in
     div [ class "editor" ]
         [ pre [ class "line-numbers" ] [ text lineNumbers ]
-        , textarea [ class "go-code", value goCode, onInput UpdateText ] []
+        , textarea [ class "go-code", value goCode, onInput EditGoCode ] []
         ]
 
 
 results : String -> Html Msg
 results goCode =
     pre [ class "results" ] [ code [] [ text goCode ] ]
+
+
+
+-- PORTS
+
+
+port sendGoCode : String -> Cmd msg
+
+
+port receiveGoCode : (String -> msg) -> Sub msg
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.batch
+        [ receiveGoCode ReceiveGoCode
+        , Time.every 1000 SendGoCode
+        ]
 
 
 
@@ -117,5 +145,5 @@ main =
         { init = init
         , update = update
         , view = view
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         }

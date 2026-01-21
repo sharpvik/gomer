@@ -12,6 +12,16 @@
         let app = Elm.Main.init({
             node: document.getElementById('elm-app')
         });
+
+        let socket = new WebSocket('ws://localhost:8080/conn');
+
+        app.ports.sendGoCode.subscribe(goCode => {
+            socket.send(JSON.stringify({ goCode }));
+        });
+
+        socket.addEventListener("message", event => {
+            app.ports.receiveGoCode.send(JSON.parse(event.data).goCode);
+        });
     </script>
 </body>
 </html>
