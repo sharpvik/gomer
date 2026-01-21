@@ -1,4 +1,4 @@
-.PHONY: build build-prod help
+.PHONY: dev prod serve
 
 # Build the Elm project
 dev:
@@ -10,10 +10,3 @@ prod:
 
 serve: dev
 	serve -d dist
-
-# Show help message
-help:
-	@echo "Available targets:"
-	@echo "  build      - Compile Elm project to elm.js"
-	@echo "  build-prod - Build optimized production version"
-	@echo "  help       - Show this help message"
