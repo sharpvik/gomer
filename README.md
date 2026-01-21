@@ -1,2 +1,3 @@
 # gomer
-Live collaboration Go coding tool
+
+Live collaboration Go coding tool.
