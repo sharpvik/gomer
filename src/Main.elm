@@ -4,7 +4,7 @@ import Browser exposing (Document)
 import Html exposing (Html, button, code, div, nav, pre, text, textarea)
 import Html.Attributes exposing (class, value)
 import Html.Events exposing (onClick, onInput)
-import Icons
+import Icon
 
 
 
@@ -84,7 +84,7 @@ view model =
 navigation : Html Msg
 navigation =
     nav []
-        [ button [] [ Icons.play ]
+        [ button [] [ Icon.play ]
         ]
 
 
