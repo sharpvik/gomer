@@ -50,7 +50,8 @@ type Msg
     | ReceiveRunResult String
     | SendGoCode Time.Posix
     | RunGoCode
-    | GotRunComplete (Result Http.Error ())
+    | RunComplete (Result Http.Error ())
+    | FormatGoCode
 
 
 
@@ -79,16 +80,28 @@ update msg model =
         RunGoCode ->
             ( model, runGoCode model.goCode )
 
-        GotRunComplete _ ->
+        RunComplete _ ->
             ( model, Cmd.none )
+
+        FormatGoCode ->
+            ( model, formatGoCode model.goCode )
 
 
 runGoCode : String -> Cmd Msg
 runGoCode goCode =
     Http.post
-        { url = "http://localhost:8080/run"
+        { url = "/run"
         , body = Http.stringBody "text/plain" goCode
-        , expect = Http.expectWhatever GotRunComplete
+        , expect = Http.expectWhatever RunComplete
+        }
+
+
+formatGoCode : String -> Cmd Msg
+formatGoCode goCode =
+    Http.post
+        { url = "/format"
+        , body = Http.stringBody "text/plain" goCode
+        , expect = Http.expectWhatever RunComplete
         }
 
 
@@ -113,6 +126,7 @@ navigation : Html Msg
 navigation =
     nav []
         [ button [ onClick RunGoCode ] [ Icon.play ]
+        , button [ onClick FormatGoCode ] [ Icon.format ]
         ]
 
 

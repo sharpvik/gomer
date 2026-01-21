@@ -5,9 +5,11 @@ import (
 	"net/http"
 )
 
+const addr = "0.0.0.0:8080"
+
 func main() {
-	log.Println("Starting server on port 8080")
+	log.Println("Starting server at http://" + addr)
 	handler := NewHandler()
 	mux := handler.Mux()
-	http.ListenAndServe(":8080", mux)
+	http.ListenAndServe(addr, mux)
 }

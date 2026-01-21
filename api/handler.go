@@ -32,6 +32,8 @@ func (h *Handler) Mux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/conn", h.HandleNewWebSocketConnection)
 	mux.HandleFunc("/run", h.RunGoCode)
+	mux.HandleFunc("/format", h.FormatGoCode)
+	mux.Handle("/", http.FileServer(http.Dir("dist")))
 	return mux
 }
 
@@ -83,6 +85,48 @@ func (h *Handler) RunGoCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.broadcastRunResult(buf.String())
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) FormatGoCode(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	goCode, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("error reading go code: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	dirName, err := os.MkdirTemp("", "gomer-format-")
+	if err != nil {
+		log.Printf("error creating temp directory: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer os.RemoveAll(dirName)
+
+	mainGoPath := filepath.Join(dirName, "main.go")
+	if err := os.WriteFile(mainGoPath, goCode, 0644); err != nil {
+		log.Printf("error writing main.go: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var buf bytes.Buffer
+	if err := Command(dirName, "gofmt", mainGoPath).Pipe(&buf).Run(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	h.updateGoCode(buf.String())
+	h.broadcastGoCode()
 	w.WriteHeader(http.StatusNoContent)
 }
 

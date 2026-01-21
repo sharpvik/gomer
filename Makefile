@@ -1,4 +1,4 @@
-.PHONY: dev prod ui api
+.PHONY: dev prod api
 
 # Build the Elm project
 dev:
@@ -8,9 +8,6 @@ dev:
 prod:
 	elm make src/Main.elm --output=dist/js/elm.js --optimize
 
-# Serve the development version for local development and testing
-ui: dev
-	serve -d dist
-
+# Run the API and the file server
 api:
 	go run ./api
