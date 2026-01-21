@@ -7,11 +7,11 @@ import Svg.Attributes exposing (..)
 
 play : Html msg
 play =
-    -- <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    -- <path opacity="0.15" d="M8 6V18L18 12L8 6Z" fill="#001A72"/>
-    -- <path d="M8 6V18L18 12L8 6Z" stroke="#001A72" stroke-width="1.5" stroke-linejoin="round"/>
-    -- </svg>
+    let
+        hexColor =
+            "#0a0a0a"
+    in
     svg [ width "24", height "24", viewBox "0 0 24 24", fill "none" ]
-        [ Svg.path [ opacity "0.15", d "M8 6V18L18 12L8 6Z", fill "#001A72" ] []
-        , Svg.path [ d "M8 6V18L18 12L8 6Z", stroke "#001A72", strokeWidth "1.5", strokeLinejoin "round" ] []
+        [ Svg.path [ opacity "0.15", d "M8 6V18L18 12L8 6Z", fill hexColor ] []
+        , Svg.path [ d "M8 6V18L18 12L8 6Z", stroke hexColor, strokeWidth "1.5", strokeLinejoin "round" ] []
         ]

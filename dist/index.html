@@ -20,7 +20,15 @@
         });
 
         socket.addEventListener("message", event => {
-            app.ports.receiveGoCode.send(JSON.parse(event.data).goCode);
+            const msg = JSON.parse(event.data);
+            switch (msg.type) {
+                case "codeUpdate":
+                    app.ports.receiveGoCode.send(msg.data.goCode);
+                    break;
+                case "runResult":
+                    app.ports.receiveRunResult.send(msg.data.output);
+                    break;
+            }
         });
     </script>
 </body>

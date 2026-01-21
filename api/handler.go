@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sync"
 
@@ -36,7 +36,6 @@ func (h *Handler) Mux() *http.ServeMux {
 }
 
 func (h *Handler) RunGoCode(w http.ResponseWriter, r *http.Request) {
-	// fix cors shit
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
@@ -61,33 +60,30 @@ func (h *Handler) RunGoCode(w http.ResponseWriter, r *http.Request) {
 	defer os.RemoveAll(dirName)
 
 	mainGoPath := filepath.Join(dirName, "main.go")
-	os.WriteFile(mainGoPath, goCode, 0644)
-
-	cmd := exec.Command("go", "mod", "init", "gomer")
-	cmd.Dir = dirName
-	if err := cmd.Run(); err != nil {
-		log.Printf("error running go mod init: %v", err)
+	if err := os.WriteFile(mainGoPath, goCode, 0644); err != nil {
+		log.Printf("error writing main.go: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	cmd = exec.Command("go", "mod", "tidy")
-	cmd.Dir = dirName
-	if err := cmd.Run(); err != nil {
-		log.Printf("error running go mod tidy: %v", err)
+	if err := Command(dirName, "go", "mod", "init", "gomer").Run(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	cmd = exec.Command("go", "run", ".")
-	cmd.Dir = dirName
-	cmd.Stdout = w
-	cmd.Stderr = w
-	if err := cmd.Run(); err != nil {
-		log.Printf("error running go run: %v", err)
+	if err := Command(dirName, "go", "mod", "tidy").Run(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	var buf bytes.Buffer
+	if err := Command(dirName, "go", "run", ".").Pipe(&buf).Run(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	h.broadcastRunResult(buf.String())
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) HandleNewWebSocketConnection(w http.ResponseWriter, r *http.Request) {
@@ -145,9 +141,15 @@ func (h *Handler) updateGoCode(newCodeState string) {
 func (h *Handler) sendGoCodeTo(conn *websocket.Conn) error {
 	h.RLock()
 	defer h.RUnlock()
-	return wsjson.Write(context.Background(), conn, CodeUpdateMessage{
-		GoCode: h.goCode,
-	})
+
+	msg := Message[CodeUpdateMessage]{
+		Type: MessageTypeCodeUpdate,
+		Data: CodeUpdateMessage{
+			GoCode: h.goCode,
+		},
+	}
+
+	return wsjson.Write(context.Background(), conn, msg)
 }
 
 func (h *Handler) broadcastGoCode() {
@@ -163,5 +165,35 @@ func (h *Handler) broadcastGoCode() {
 
 	if err := eg.Wait(); err != nil {
 		log.Printf("error broadcasting go code: %v", err)
+	}
+}
+
+func (h *Handler) sendRunResultTo(conn *websocket.Conn, output string) error {
+	h.RLock()
+	defer h.RUnlock()
+
+	msg := Message[RunResultMessage]{
+		Type: MessageTypeRunResult,
+		Data: RunResultMessage{
+			Output: output,
+		},
+	}
+
+	return wsjson.Write(context.Background(), conn, msg)
+}
+
+func (h *Handler) broadcastRunResult(output string) {
+	h.RLock()
+	defer h.RUnlock()
+	var eg errgroup.Group
+
+	for conn := range h.clients {
+		eg.Go(func() error {
+			return h.sendRunResultTo(conn, output)
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		log.Printf("error broadcasting run result: %v", err)
 	}
 }

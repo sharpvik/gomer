@@ -2,7 +2,7 @@ port module Main exposing (..)
 
 import Browser exposing (Document)
 import Html exposing (Html, button, code, div, nav, pre, text, textarea)
-import Html.Attributes exposing (class, value)
+import Html.Attributes exposing (class, spellcheck, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Icon
@@ -47,9 +47,10 @@ initGoOutput =
 type Msg
     = EditGoCode String
     | ReceiveGoCode String
+    | ReceiveRunResult String
     | SendGoCode Time.Posix
     | RunGoCode
-    | ReceiveRunResult (Result Http.Error String)
+    | GotRunComplete (Result Http.Error ())
 
 
 
@@ -65,6 +66,9 @@ update msg model =
         ReceiveGoCode code ->
             ( { model | goCode = code }, Cmd.none )
 
+        ReceiveRunResult output ->
+            ( { model | goOutput = output }, Cmd.none )
+
         SendGoCode _ ->
             if model.goCodeEdited then
                 ( { model | goCodeEdited = False }, sendGoCode model.goCode )
@@ -75,11 +79,8 @@ update msg model =
         RunGoCode ->
             ( model, runGoCode model.goCode )
 
-        ReceiveRunResult (Ok output) ->
-            ( { model | goOutput = output }, Cmd.none )
-
-        ReceiveRunResult (Err _) ->
-            ( { model | goOutput = "Error running code" }, Cmd.none )
+        GotRunComplete _ ->
+            ( model, Cmd.none )
 
 
 runGoCode : String -> Cmd Msg
@@ -87,7 +88,7 @@ runGoCode goCode =
     Http.post
         { url = "http://localhost:8080/run"
         , body = Http.stringBody "text/plain" goCode
-        , expect = Http.expectString ReceiveRunResult
+        , expect = Http.expectWhatever GotRunComplete
         }
 
 
@@ -125,7 +126,7 @@ editor goCode =
     in
     div [ class "editor" ]
         [ pre [ class "line-numbers" ] [ text lineNumbers ]
-        , textarea [ class "go-code", value goCode, onInput EditGoCode ] []
+        , textarea [ class "go-code", value goCode, onInput EditGoCode, spellcheck False ] []
         ]
 
 
@@ -144,6 +145,9 @@ port sendGoCode : String -> Cmd msg
 port receiveGoCode : (String -> msg) -> Sub msg
 
 
+port receiveRunResult : (String -> msg) -> Sub msg
+
+
 
 -- SUBSCRIPTIONS
 
@@ -152,6 +156,7 @@ subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
         [ receiveGoCode ReceiveGoCode
+        , receiveRunResult ReceiveRunResult
         , Time.every 500 SendGoCode
         ]
 
