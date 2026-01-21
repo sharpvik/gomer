@@ -3,7 +3,8 @@ port module Main exposing (..)
 import Browser exposing (Document)
 import Html exposing (Html, button, code, div, nav, pre, text, textarea)
 import Html.Attributes exposing (class, value)
-import Html.Events exposing (onInput)
+import Html.Events exposing (onClick, onInput)
+import Http
 import Icon
 import Time
 
@@ -47,6 +48,8 @@ type Msg
     = EditGoCode String
     | ReceiveGoCode String
     | SendGoCode Time.Posix
+    | RunGoCode
+    | ReceiveRunResult (Result Http.Error String)
 
 
 
@@ -69,6 +72,24 @@ update msg model =
             else
                 ( model, Cmd.none )
 
+        RunGoCode ->
+            ( model, runGoCode model.goCode )
+
+        ReceiveRunResult (Ok output) ->
+            ( { model | goOutput = output }, Cmd.none )
+
+        ReceiveRunResult (Err _) ->
+            ( { model | goOutput = "Error running code" }, Cmd.none )
+
+
+runGoCode : String -> Cmd Msg
+runGoCode goCode =
+    Http.post
+        { url = "http://localhost:8080/run"
+        , body = Http.stringBody "text/plain" goCode
+        , expect = Http.expectString ReceiveRunResult
+        }
+
 
 
 -- VIEW
@@ -90,7 +111,7 @@ view model =
 navigation : Html Msg
 navigation =
     nav []
-        [ button [] [ Icon.play ]
+        [ button [ onClick RunGoCode ] [ Icon.play ]
         ]
 
 
@@ -131,7 +152,7 @@ subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
         [ receiveGoCode ReceiveGoCode
-        , Time.every 1000 SendGoCode
+        , Time.every 500 SendGoCode
         ]
 
 

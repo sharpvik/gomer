@@ -2,8 +2,12 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"sync"
 
 	"github.com/coder/websocket"
@@ -27,7 +31,63 @@ func NewHandler() *Handler {
 func (h *Handler) Mux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/conn", h.HandleNewWebSocketConnection)
+	mux.HandleFunc("/run", h.RunGoCode)
 	return mux
+}
+
+func (h *Handler) RunGoCode(w http.ResponseWriter, r *http.Request) {
+	// fix cors shit
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	goCode, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("error reading go code: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	dirName, err := os.MkdirTemp("", "gomer-run-")
+	if err != nil {
+		log.Printf("error creating temp directory: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer os.RemoveAll(dirName)
+
+	mainGoPath := filepath.Join(dirName, "main.go")
+	os.WriteFile(mainGoPath, goCode, 0644)
+
+	cmd := exec.Command("go", "mod", "init", "gomer")
+	cmd.Dir = dirName
+	if err := cmd.Run(); err != nil {
+		log.Printf("error running go mod init: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	cmd = exec.Command("go", "mod", "tidy")
+	cmd.Dir = dirName
+	if err := cmd.Run(); err != nil {
+		log.Printf("error running go mod tidy: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	cmd = exec.Command("go", "run", ".")
+	cmd.Dir = dirName
+	cmd.Stdout = w
+	cmd.Stderr = w
+	if err := cmd.Run(); err != nil {
+		log.Printf("error running go run: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handler) HandleNewWebSocketConnection(w http.ResponseWriter, r *http.Request) {
@@ -56,8 +116,7 @@ func (h *Handler) HandleNewWebSocketConnection(w http.ResponseWriter, r *http.Re
 		default:
 			var msg CodeUpdateMessage
 			if err := wsjson.Read(ctx, conn, &msg); err != nil {
-				log.Printf("error reading message: %v", err)
-				continue
+				return
 			}
 			h.updateGoCode(msg.GoCode)
 			h.broadcastGoCode()
