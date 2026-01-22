@@ -1,11 +1,13 @@
 port module Main exposing (..)
 
 import Browser exposing (Document)
+import Browser.Events exposing (onKeyDown)
 import Html exposing (Html, button, code, div, nav, pre, text, textarea)
 import Html.Attributes exposing (class, spellcheck, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Icon
+import Json.Decode as Decode
 import Time
 
 
@@ -52,6 +54,12 @@ type Msg
     | RunGoCode
     | RunComplete (Result Http.Error ())
     | FormatGoCode
+    | Ignore
+
+
+type KeyboardEvent
+    = Ctrl Char
+    | Other
 
 
 
@@ -85,6 +93,9 @@ update msg model =
 
         FormatGoCode ->
             ( model, formatGoCode model.goCode )
+
+        Ignore ->
+            ( model, Cmd.none )
 
 
 runGoCode : String -> Cmd Msg
@@ -171,8 +182,49 @@ subscriptions _ =
     Sub.batch
         [ receiveGoCode ReceiveGoCode
         , receiveRunResult ReceiveRunResult
+        , onKeyDown (Decode.map toKeyDownMsg eventDecoder)
         , Time.every 500 SendGoCode
         ]
+
+
+toKeyDownMsg : KeyboardEvent -> Msg
+toKeyDownMsg event =
+    case event of
+        Ctrl 's' ->
+            RunGoCode
+
+        Ctrl 'f' ->
+            FormatGoCode
+
+        _ ->
+            Ignore
+
+
+eventDecoder : Decode.Decoder KeyboardEvent
+eventDecoder =
+    Decode.map2
+        eventConstructor
+        (Decode.field "ctrlKey" Decode.bool)
+        (Decode.field "key" Decode.string)
+
+
+eventConstructor : Bool -> String -> KeyboardEvent
+eventConstructor ctrl key =
+    if ctrl then
+        specialKeyEvent Ctrl key
+
+    else
+        Other
+
+
+specialKeyEvent : (Char -> KeyboardEvent) -> String -> KeyboardEvent
+specialKeyEvent event key =
+    case String.uncons key of
+        Just ( char, _ ) ->
+            event char
+
+        Nothing ->
+            Other
 
 
 
