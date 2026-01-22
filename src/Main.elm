@@ -86,7 +86,7 @@ update msg model =
                 ( model, Cmd.none )
 
         RunGoCode ->
-            ( model, runGoCode model.goCode )
+            ( { model | goOutput = "Running..." }, runGoCode model.goCode )
 
         RunComplete _ ->
             ( model, Cmd.none )
