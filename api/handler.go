@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
@@ -38,14 +39,6 @@ func (h *Handler) Mux() *http.ServeMux {
 }
 
 func (h *Handler) RunGoCode(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	goCode, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("error reading go code: %v", err)
@@ -79,7 +72,15 @@ func (h *Handler) RunGoCode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var buf bytes.Buffer
-	if err := Command(dirName, "go", "run", ".").Pipe(&buf).Run(); err != nil {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	if err := CommandContext(ctx, dirName, "go", "run", ".").Pipe(&buf).Run(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			h.broadcastRunResult("Program took more than 10 seconds to run. Time's up.")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -89,14 +90,6 @@ func (h *Handler) RunGoCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) FormatGoCode(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	goCode, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("error reading go code: %v", err)

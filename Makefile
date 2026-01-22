@@ -1,4 +1,4 @@
-.PHONY: dev prod api
+.PHONY: dev prod api image up down
 
 # Build the Elm project
 dev:
@@ -11,3 +11,12 @@ prod:
 # Run the API and the file server
 api:
 	go run ./api
+
+image:
+	docker compose build
+
+up:
+	docker compose up -d --build
+
+down:
+	docker compose down
