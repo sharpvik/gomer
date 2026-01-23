@@ -8,6 +8,8 @@ main {
     background-color: white;
     display: flex;
     flex-direction: row;
+    height: 100vh;
+    overflow-y: hidden;
 }
 
 main > nav {
@@ -15,6 +17,7 @@ main > nav {
     flex-direction: column;
     padding: 8px;
     gap: 8px;
+    background-color: rgba(10, 10, 10, 0.04);
 }
 main > nav > button {
     background-color: transparent;
@@ -29,14 +32,8 @@ main > nav > button {
     width: 50%;
     display: flex;
     flex-direction: row;
-    padding: 8px 0;
+    padding: 16px;
     color: black;
-}
-.editor > .line-numbers {
-    color: gray;
-    text-align: right;
-    font-family: monospace;
-    font-size: 14px;
 }
 .editor > .go-code {
     width: 100%;
@@ -53,7 +50,7 @@ main > nav > button {
     color: #e5e5e5;
     font-family: monospace;
     font-size: 14px;
-    padding: 8px;
+    padding: 16px;
     background-color: #0a0a0a;
     white-space: pre-wrap;
     word-break: break-word;

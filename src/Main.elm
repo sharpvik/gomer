@@ -143,15 +143,8 @@ navigation =
 
 editor : String -> Html Msg
 editor goCode =
-    let
-        lineNumbers =
-            List.range 0 9999
-                |> List.map (\i -> String.fromInt i)
-                |> String.join "  \n"
-    in
     div [ class "editor" ]
-        [ pre [ class "line-numbers" ] [ text lineNumbers ]
-        , textarea [ class "go-code", value goCode, onInput EditGoCode, spellcheck False ] []
+        [ textarea [ class "go-code", value goCode, onInput EditGoCode, spellcheck False ] []
         ]
 
 
