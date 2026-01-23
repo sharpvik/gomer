@@ -1,4 +1,4 @@
-.PHONY: dev prod serve image up down
+.PHONY: dev prod serve image up down push
 
 # Build the Elm project
 dev:
@@ -23,3 +23,7 @@ up:
 # Stop the Docker container
 down:
 	docker compose down
+
+# Push the Docker image to Docker Hub
+push: image
+	docker compose push

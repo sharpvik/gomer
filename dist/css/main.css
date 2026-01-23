@@ -49,10 +49,12 @@ main > nav > button {
 }
 
 .results {
-    flex-grow: 1;
+    width: 50%;
     color: #e5e5e5;
     font-family: monospace;
     font-size: 14px;
     padding: 8px;
     background-color: #0a0a0a;
+    white-space: pre-wrap;
+    word-break: break-word;
 }

@@ -1,8 +1,8 @@
 # Stage 1: Build Elm application
-FROM node:20-alpine AS elm-builder
+FROM node:20 AS elm-builder
 
 # Install Elm 0.19.1 directly from GitHub releases
-RUN apk add --no-cache curl && \
+RUN apt-get install -y curl && \
     curl -L -o elm.gz https://github.com/elm/compiler/releases/download/0.19.1/binary-for-linux-64-bit.gz && \
     gunzip elm.gz && \
     chmod +x elm && \
@@ -21,7 +21,7 @@ COPY dist ./dist
 RUN elm make src/Main.elm --output=dist/js/elm.js --optimize
 
 # Stage 2: Build Go binary
-FROM golang:1.24-alpine AS go-builder
+FROM golang:1.24 AS go-builder
 
 WORKDIR /build
 

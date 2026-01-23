@@ -81,8 +81,6 @@ func (h *Handler) RunGoCode(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 
 	h.broadcastRunResult(buf.String())
@@ -114,12 +112,14 @@ func (h *Handler) FormatGoCode(w http.ResponseWriter, r *http.Request) {
 
 	var buf bytes.Buffer
 	if err := Command(dirName, "gofmt", mainGoPath).Pipe(&buf).Run(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.broadcastRunResult(buf.String())
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
 	h.updateGoCode(buf.String())
-	h.broadcastGoCode()
+	h.broadcastGoCode(nil)
+	h.broadcastRunResult("Code formatted successfully")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -152,7 +152,7 @@ func (h *Handler) HandleNewWebSocketConnection(w http.ResponseWriter, r *http.Re
 				return
 			}
 			h.updateGoCode(msg.GoCode)
-			h.broadcastGoCode()
+			h.broadcastGoCode(conn)
 		}
 	}
 }
@@ -189,12 +189,15 @@ func (h *Handler) sendGoCodeTo(conn *websocket.Conn) error {
 	return wsjson.Write(context.Background(), conn, msg)
 }
 
-func (h *Handler) broadcastGoCode() {
+func (h *Handler) broadcastGoCode(except *websocket.Conn) {
 	h.RLock()
 	defer h.RUnlock()
 	var eg errgroup.Group
 
 	for conn := range h.clients {
+		if conn == except {
+			continue
+		}
 		eg.Go(func() error {
 			return h.sendGoCodeTo(conn)
 		})

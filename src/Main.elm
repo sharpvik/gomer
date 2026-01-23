@@ -3,7 +3,7 @@ port module Main exposing (..)
 import Browser exposing (Document)
 import Browser.Events exposing (onKeyDown)
 import Html exposing (Html, button, code, div, nav, pre, text, textarea)
-import Html.Attributes exposing (class, spellcheck, value)
+import Html.Attributes exposing (class, spellcheck, title, value)
 import Html.Events exposing (onClick, onInput)
 import Http
 import Icon
@@ -136,8 +136,8 @@ view model =
 navigation : Html Msg
 navigation =
     nav []
-        [ button [ onClick RunGoCode ] [ Icon.play ]
-        , button [ onClick FormatGoCode ] [ Icon.format ]
+        [ button [ onClick RunGoCode, title "Run code" ] [ Icon.play ]
+        , button [ onClick FormatGoCode, title "Format code" ] [ Icon.format ]
         ]
 
 
